@@ -1,0 +1,528 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=Layout1.bjl
+FileGroup1=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=jxui
+NumberOfFiles=1
+NumberOfLibraries=3
+NumberOfModules=0
+Version=9.3
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 600
+	#MainFormHeight: 800 
+#End Region
+
+Sub Process_Globals
+	Private fx As JFX
+	Private MainForm As Form
+	Private xui As XUI 
+	Private logSteps As Boolean = False 'Log the encryption steps
+	Private Const rotor1 As String = "EKMFLGDQVZNTOWYHXUSPAIBRCJ"'ignore
+	Private Const rotor1Trigger As String = "Q"'ignore
+	Private Const rotor2 As String = "AJDKSIRUXBLHWTMCQGZNPYFVOE"'ignore
+	Private Const rotor2Trigger As String = "E"'ignore
+	Private Const rotor3 As String = "BDFHJLCPRTXVZNYEIWGAKMUSQO"'ignore
+	Private Const rotor3Trigger As String = "V"'ignore
+	Private Const rotor4 As String = "ESOVPZJAYQUIRHXLNFTGKDCMWB" 'ignore
+	Private Const rotor4Trigger As String = "J"'ignore
+	Private Const rotor5 As String = "VZBRGITYUPSDNHLXAWMJQOFECK"'ignore
+	Private Const rotor5Trigger As String = "Z"'ignore
+	Private Const alphabet As String = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"'ignore
+	Private rotorCLetter = "A", rotorBLetter = "A", rotorALetter = "A" As String
+	Private rotorANotch = False,rotorBNotch = False,rotorCNotch = False As Boolean 'ignore
+	Private letterCount As Int = 0
+	Private reflectorB As Map = CreateMap("A":"Y","Y":"A","B":"R","R":"B","C":"U","U":"C","D":"H","H":"D","E":"Q","Q":"E","F":"S","S":"F","G":"L","L":"G","I":"P","P":"I","J":"X","X":"J","K":"N","N":"K","M":"O","O":"M","T":"Z","Z":"T","V":"W","W":"V")
+	Private reflectorC As Map = CreateMap("A":"F","F":"A","B":"V","V":"B","C":"P","P":"C","D":"J","J":"D","E":"I","I":"E","G":"O","O":"G","H":"Y","Y":"H","K":"R","R":"K","L":"Z","Z":"L","M":"X","X":"M","N":"W","W":"N","Q":"T","T":"Q","S":"U","U":"S")'ignore
+	Private reflector As Map = reflectorB
+	Private reflectorName As String = "UKW-B"'ignore
+	Private rotorA = rotor1, rotorB = rotor2, rotorC = rotor3 As String 'rotorC = right Wheel, rotorA = left Wheel
+	Private rotorATrigger= rotor1Trigger,rotorBTrigger = rotor2Trigger,rotorCTrigger = rotor3Trigger As String 'ignore
+	Private colors As Map = CreateMap(xui.Color_Red:0,xui.Color_Yellow:0,xui.Color_Blue:0,xui.Color_Green:0,xui.Color_Magenta:0,xui.Color_Cyan:0,xui.Color_RGB(255,69,0):0,xui.Color_RGB(128,0,0):0,xui.Color_RGB(75,0,130):0,xui.Color_RGB(112,130,56):0,xui.Color_RGB(160,82,45):0,xui.Color_RGB(199,234,70):0,xui.Color_RGB(0,202,177):0)'ignore
+	Private currentColor As Int = -1
+	Private currentLetter As String = ""
+	Private plugs As Map = CreateMap("Q":"","W":"","E":"","R": "","T": "","Z":"","U":"","I":"","O":"","A":"","S":"","D":"","F":"","G":"","H":"","J":"","K":"","P":"","Y":"","X":"","C":"","V":"","B":"","N":"","M":"","L":"")
+	Private toppanel As B4XView
+	Private plaintext,chipertext As TextArea
+	Private w3next,w3current,w3prev,w2prev,w2current,w2next,w1next,w1prev,w1current As Label
+	Private bottompanel,settingspnl As Pane
+	Private combor1,combopos1,combor2,combopos2,combor3,combopos3,comboreflector,comboring1,comboring2,comboring3 As ComboBox
+	Private encryptedLetter As String
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	MainForm = Form1
+	MainForm.RootPane.LoadLayout("Layout1")
+	MainForm.Show
+	MainForm.Resizable = False
+	resetAllPlugBackColors
+	loadcombos
+End Sub
+
+Private Sub loadcombos
+	comboreflector.Items.AddAll(Array As String("UKW-B","UKW-C"))
+	combor1.Items.AddAll(Array As String("I","II","III","IV","V"))
+	combor2.Items.AddAll(Array As String("I","II","III","IV","V"))
+	combor3.Items.AddAll(Array As String("I","II","III","IV","V"))
+	Dim alphabetArray() As String = Array As String("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z")
+	combopos1.Items.AddAll(alphabetArray)
+	combopos2.Items.AddAll(alphabetArray)
+	combopos3.Items.AddAll(alphabetArray)
+	comboring1.Items.AddAll(alphabetArray)
+	comboring2.Items.AddAll(alphabetArray)
+	comboring3.Items.AddAll(alphabetArray)
+	comboreflector.SelectedIndex = 0
+	combor1.SelectedIndex = 0
+	combor2.SelectedIndex = 1
+	combor3.SelectedIndex = 2
+	combopos1.SelectedIndex = 0
+	combopos2.SelectedIndex = 0
+	combopos3.SelectedIndex = 0
+	comboring1.SelectedIndex = 0
+	comboring2.SelectedIndex = 0
+	comboring3.SelectedIndex = 0
+End Sub
+
+Private Sub resetAllPlugBackColors
+	For Each n As Node In bottompanel.GetAllViewsRecursive
+		If n Is Pane Then
+			Dim bv As B4XView = n
+			bv.Color = xui.Color_Transparent
+		End If
+	Next
+End Sub
+ 
+Private Sub encryptKey(letter As String, bx As B4XView) 
+'  var keyboardSound = new Audio('./sounds/keyboard.mp3');
+'  keyboardSound.play();
+	bx.Color = xui.Color_RGB(73,73,73)
+	plaintext.Text = plaintext.Text & letter
+	If plaintext.Text.Length Mod 5 = 0 Then plaintext.Text = plaintext.Text & " "
+	encryptedLetter = letter
+	If logSteps Then Log("Keyboard Input: " & letter)
+	 
+'  //Rotate Rotors // This happens As soon As a key Is pressed, before encrypting the letter!
+'  //Third rotor rotate by 1 For every key being pressed
+	If rotorCLetter = rotorCTrigger Then rotorCNotch = True
+	Dim previous As Int = alphabet.IndexOf(rotorCLetter)
+	Dim current As Int = (previous+1) Mod 26
+	Dim nextPos As Int = (previous+2) Mod 26
+ 
+	w1prev.Text = rotorCLetter
+    rotorCLetter = alphabet.charAt(current) 'set the next LETTER
+	w1current.Text = rotorCLetter
+	w1next.text = alphabet.charAt(nextPos)
+ 
+	'  //Check if rotorB needs to rotate
+	If rotorCNotch Then 
+		rotorCNotch=False
+		If rotorBLetter = rotorBTrigger Then rotorBNotch = True
+		previous = alphabet.indexOf(rotorBLetter)
+		current = (previous + 1) Mod 26
+		nextPos = (previous + 2) Mod 26
+		w2prev.Text = rotorBLetter
+		rotorBLetter = alphabet.charAt(current)
+		w2current.Text = rotorBLetter
+		w2next.text = alphabet.charAt(nextPos)
+		If rotorBNotch Then
+			rotorBNotch = False
+			previous = alphabet.indexOf(rotorALetter)
+			current = (previous + 1) Mod 26
+			nextPos = (previous + 2) Mod 26
+			w3prev.Text = rotorALetter
+			w3current.Text = alphabet.charAt(current)
+			w3next.text = alphabet.charAt(nextPos)			
+		End If
+	Else
+		If rotorBLetter = rotorBTrigger Then 
+			previous = alphabet.indexOf(rotorBLetter)
+			current = (previous + 1) Mod 26
+			nextPos = (previous + 2) Mod 26
+			w2prev.Text = rotorBLetter
+			rotorBLetter = alphabet.charAt(current)
+			w2current.Text = rotorBLetter
+			w2next.text = alphabet.charAt(nextPos)
+			previous = alphabet.indexOf(rotorALetter)
+			current = (previous + 1) Mod 26
+			nextPos = (previous + 2) Mod 26
+			w3prev.Text = rotorALetter
+			w3current.Text = alphabet.charAt(current)
+			w3next.text = alphabet.charAt(nextPos)		
+		End If
+	End If
+	If logSteps Then Log("Rotors Position: " & rotorALetter &  rotorBLetter & rotorCLetter)
+ 
+'  //Implement plugboard encryption!
+	If plugs.Get(letter) <> "" Then encryptedLetter = plugs.Get(letter)
+	If logSteps Then Log("Plugboard Encryption: " & encryptedLetter)
+	 
+'  //Rotors & Reflector Encryption
+	Dim offset3Letter As String = rotorCLetter
+	Dim offset3 As Int = alphabet.indexOf(offset3Letter)
+	Dim offset2Letter As String = rotorBLetter
+    Dim offset2 As Int = alphabet.indexOf(offset2Letter)
+	Dim offset1Letter As String = rotorALetter
+	Dim offset1 As Int = alphabet.indexOf(offset1Letter)
+	letterCount = letterCount + 1
+	'  //Wheel3
+	Dim pos As Int = alphabet.indexOf(encryptedLetter)
+	Dim let As String = rotorC.charAt((pos + offset3) Mod 26)
+	pos = alphabet.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset3 +26)Mod 26)
+	If logSteps Then Log("Wheel 3 Encryption: " & encryptedLetter)
+	'  //Wheel2
+	pos = alphabet.indexOf(encryptedLetter)
+	let = rotorB.charAt((pos + offset2)Mod 26)
+	pos = alphabet.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset2 +26)Mod 26)
+	If logSteps Then Log("Wheel 2 Encryption: " & encryptedLetter)
+	'  //Wheel1
+	pos = alphabet.indexOf(encryptedLetter)
+	let = rotorA.charAt((pos + offset1)Mod 26)
+	pos = alphabet.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset1 +26)Mod 26)
+	If logSteps Then Log("Wheel 1 Encryption: " & encryptedLetter)
+	'  //reflector
+	If reflector.ContainsKey(encryptedLetter) Then  encryptedLetter = reflector.Get(encryptedLetter)
+	If logSteps Then Log("Reflector Encryption: " & encryptedLetter)
+	'  //Back through the rotors 
+	'  //Wheel1  
+	pos = alphabet.indexOf(encryptedLetter)
+	let = alphabet.charAt((pos + offset1)Mod 26)
+	pos = rotorA.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset1 +26)Mod 26)
+	If logSteps Then Log("Wheel 1 Encryption: " &  encryptedLetter)
+	'  //Wheel2
+	pos = alphabet.indexOf(encryptedLetter)
+	let = alphabet.charAt((pos + offset2)Mod 26)
+	pos = rotorB.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset2 +26)Mod 26)
+	If logSteps Then Log("Wheel 2 Encryption: " & encryptedLetter)
+	'  //Wheel3
+	pos = alphabet.indexOf(encryptedLetter)
+	let = alphabet.charAt((pos + offset3)Mod 26)
+	pos = rotorC.indexOf(let)
+	encryptedLetter = alphabet.charAt((pos - offset3 + 26)Mod 26)
+	If logSteps Then Log("Wheel 3 Encryption: " & encryptedLetter)
+	'  //Implement plugboard encryption!
+	If plugs.Get(encryptedLetter) <> "" Then encryptedLetter = plugs.Get(encryptedLetter)
+	If logSteps Then Log("Plugboard Encryption: " & encryptedLetter)
+	If logSteps Then Log("Output (Lampboard): " & encryptedLetter)
+	If logSteps Then Log("-----------------------------")
+	chipertext.Text = chipertext.Text & encryptedLetter
+	If chipertext.Text.Length Mod 5 = 0 Then chipertext.Text = chipertext.Text & " "
+End Sub
+
+Private Sub getFreeColor As Int
+	For Each clr As Int In colors.Keys
+		If colors.Get(clr).As(Int) = 0 Then Return clr
+	Next
+	Return Null
+End Sub
+
+Private Sub resetPlug(color As Int)
+	For Each n As Node In bottompanel.GetAllViewsRecursive
+		If n Is Pane Then 
+			Dim bv As B4XView = n
+			If bv.Color = color Then 
+				bv.Color = xui.Color_Transparent
+				Exit
+			End If
+		End If
+	Next
+	colors.Put(color,0)
+End Sub
+
+Private Sub plug(pnl As B4XView) 'ignore
+	Dim letter As String = pnl.Tag'
+	'play sound
+	If pnl.Color = xui.Color_Transparent Or pnl.Color = xui.Color_RGB(53,53,53) Then
+		If currentColor = -1 Then 
+			currentColor = getFreeColor
+			pnl.Color = currentColor
+			currentLetter = letter
+		Else 
+			plugs.Put(letter,currentLetter)
+			plugs.Put(currentLetter,letter)
+			pnl.Color = currentColor
+			colors.Put(currentColor,2)
+			currentColor = -1
+			currentLetter = ""
+		End If
+	Else
+		If pnl.Color = currentColor Then
+			resetPlug(currentColor)
+			currentColor = -1
+		Else 
+			colors.Put(pnl.Color,0)
+			Dim tmp As String = plugs.Get(letter)
+			plugs.Put(letter, "")
+			If tmp <> "" Then plugs.put(tmp,"")
+			resetPlug(pnl.Color)
+			pnl.Color = xui.Color_Transparent
+		End If
+	End If
+End Sub
+
+Private Sub lightOn(letter As String) 
+	Dim bv As B4XView = Null
+	For Each n As Node In toppanel.GetAllViewsRecursive
+		If n Is Label Then 
+			Dim lbl As Label = n
+			If lbl.Tag = "lamp" Then 
+				If lbl.Text = letter Then 
+					bv = lbl
+					Exit
+				End If
+			End If
+		End If
+	Next
+	If bv <> Null Then 
+		bv.Color = xui.Color_RGB(225,216,22)
+		bv.TextColor = xui.Color_RGB(31,31,31)
+	End If
+End Sub	
+ 
+Private Sub nextRotor(pRotor As B4XView, cRotor As B4XView, nRotor As B4XView) As String 'ignore
+	Dim rotorLetter As String = cRotor.Text
+	Dim previous As String = alphabet.indexOf(rotorLetter)
+	Dim current As String = (previous + 1) Mod 26
+	Dim nextpos As String = (previous + 2) Mod 26
+	pRotor.text = rotorLetter
+	cRotor.Text = alphabet.charAt(current)
+	nRotor.text = alphabet.charAt(nextpos)
+	Return alphabet.charAt(current)
+End Sub
+
+Private Sub prevRotor(pRotor As B4XView, cRotor As B4XView, nRotor As B4XView) As String 'ignore
+	Dim rotorLetter As String = cRotor.Text
+	Dim nextpos As String = alphabet.indexOf(rotorLetter)
+	Dim current As String = (nextpos + 25) Mod 26
+	Dim previous As String = (nextpos + 24) Mod 26
+	pRotor.text = alphabet.charAt(previous)
+	cRotor.Text = alphabet.charAt(current)
+	nRotor.text = rotorLetter
+	Return alphabet.charAt(current)
+End Sub
+
+Private Sub settingsbtn_MouseClicked (EventData As MouseEvent)
+	'open settings panel
+	BringToFront(settingspnl)
+	settingspnl.Alpha = 0
+	settingspnl.Left = 0
+	settingspnl.top = 0
+	settingspnl.SetAlphaAnimated(400,1)
+	EventData.Consume
+End Sub
+
+Private Sub keybtn_MousePressed (EventData As MouseEvent)
+	Dim lbl As Label = Sender
+	encryptKey(lbl.Text,lbl)
+	lightOn(encryptedLetter)
+	EventData.Consume
+End Sub
+
+Private Sub keybtn_MouseReleased (EventData As MouseEvent)
+	EventData.Consume	
+	Sleep(100) 'wait 200 ms
+	For Each n As Node In toppanel.GetAllViewsRecursive
+		If n Is Label Then
+			Dim lbl As Label = n
+			If lbl.Tag = "lamp" Then
+				Dim bv As B4XView = lbl
+				bv.Color = xui.Color_RGB(7,7,7)
+				bv.TextColor = xui.Color_RGB(208,208,208)
+			End If
+		End If
+	Next
+End Sub
+ 
+Private Sub wdown_MouseClicked (EventData As MouseEvent)
+	Dim lbl As Label = Sender
+	Select lbl.Tag.As(Int)
+		Case 1
+			rotorCLetter = prevRotor(w1prev,w1current,w1next)
+		Case 2
+			rotorBLetter = prevRotor(w2prev,w2current,w2next)
+		Case 3
+			rotorALetter = prevRotor(w3prev,w3current,w3next)
+	End Select
+	EventData.Consume
+End Sub
+
+Private Sub wup_MouseClicked (EventData As MouseEvent)
+	Dim lbl As Label = Sender
+	Select lbl.Tag.As(Int)
+		Case 1
+			rotorCLetter = nextRotor(w1prev,w1current,w1next)
+		Case 2
+			rotorBLetter = nextRotor(w2prev,w2current,w2next)
+		Case 3
+			rotorALetter = nextRotor(w3prev,w3current,w3next)
+	End Select
+	EventData.Consume
+End Sub
+
+Private Sub plug_MouseClicked (EventData As MouseEvent)
+	Dim pnl As B4XView = Sender
+	plug(pnl)
+	EventData.Consume
+End Sub
+
+Private Sub plug_MouseEntered (EventData As MouseEvent)
+	Dim bx As B4XView = Sender
+	If bx.Color = xui.Color_Transparent Then bx.Color = xui.Color_RGB(53,53,53)
+End Sub
+
+Private Sub plug_MouseExited (EventData As MouseEvent)
+	Dim bx As B4XView = Sender
+	If bx.Color = xui.Color_RGB(53,53,53) Then bx.Color = xui.Color_Transparent
+End Sub
+
+Private Sub keybtn_MouseEntered (EventData As MouseEvent)
+	Dim bx As B4XView = Sender
+	bx.Color = xui.Color_RGB(53,53,53)
+End Sub
+
+Private Sub keybtn_MouseExited (EventData As MouseEvent)
+	Dim bx As B4XView = Sender
+	bx.Color = xui.Color_RGB(33,33,33)
+End Sub
+
+Private Sub clearplainbtn_MouseClicked (EventData As MouseEvent)
+	plaintext.Text = ""
+	chipertext.Text = ""
+	EventData.Consume
+End Sub
+
+Private Sub resetplugs_MouseClicked (EventData As MouseEvent)
+	For Each key As String In plugs.Keys
+		plugs.Put(key,"")
+	Next
+	For Each n As Node In bottompanel.GetAllViewsRecursive
+		If n Is Pane Then
+			Dim bv As B4XView = n
+			bv.Color = xui.Color_Transparent
+		End If
+	Next
+	For Each clr As Int In colors.Keys
+		colors.Put(clr,0)
+	Next
+	currentColor = -1
+	currentLetter = ""
+	EventData.Consume
+End Sub
+
+Private Sub settingspnl_MouseClicked (EventData As MouseEvent)
+	'do nothing
+	EventData.Consume
+End Sub
+
+Sub BringToFront(n As Node)
+	Dim parent As Pane = n.Parent
+	n.RemoveNodeFromParent
+	parent.AddNode(n, n.Left, n.Top, n.PrefWidth, n.PrefHeight)
+End Sub
+
+Private Sub combosave_Click
+	'Reflector
+	If comboreflector.Value = "UKW-B" Then
+		reflector = reflectorB
+		reflectorName = "UKW-B"
+	Else
+		reflector = reflectorC
+		reflectorName = "UKW-C"
+	End If
+	'Rotors position
+	rotorCLetter = resetRotor(combopos3.Value,w1prev,w1current,w1next)
+	rotorBLetter = resetRotor(combopos2.Value,w2prev,w2current,w2next)
+	rotorALetter = resetRotor(combopos1.Value,w3prev,w3current,w3next)
+	'Rotors
+	rotorA = updateRotor(combor1.Value)
+	rotorB = updateRotor(combor2.Value)
+	rotorC = updateRotor(combor3.Value)
+	rotorATrigger = updateTrigger(combor1.Value)
+	rotorBTrigger = updateTrigger(combor2.Value)
+	rotorCTrigger = updateTrigger(combor3.Value)
+	'Ring Settings
+	Dim offset3Setting As Int = alphabet.indexOf(comboring3.value)
+	Dim offset2Setting As Int = alphabet.indexOf(comboring2.value)
+	Dim offset1Setting As Int = alphabet.indexOf(comboring1.value)
+	rotorA = caesarShift(rotorA,offset1Setting)
+	rotorB = caesarShift(rotorB,offset2Setting)
+	rotorC = caesarShift(rotorC,offset3Setting)
+	If offset1Setting > 0 Then rotorA = rotorA.substring(26-offset1Setting) & rotorA.substring2(0,26-offset1Setting)
+	If offset2Setting > 0 Then rotorB = rotorB.substring(26-offset2Setting) & rotorB.substring2(0,26-offset2Setting)
+	If offset3Setting > 0 Then rotorC = rotorC.substring(26-offset3Setting) & rotorC.substring2(0,26-offset3Setting)
+	closeSettings 'dont save anything
+End Sub
+
+Private Sub caesarShift(str As String, amount As Int) As String
+	Dim output As String = ""
+ 	For i = 0 To str.Length-1
+		Dim c As Char = str.CharAt(i)
+		Dim code As Int = Asc(c)
+		If code >= 65 And code <= 90 Then 
+			c = Chr(((code - 65 + amount) Mod 26) + 65)
+			output = output & c
+		End If
+	Next
+	Return output
+End Sub
+
+Private Sub resetRotor(value As String, pRotor As B4XView, cRotor As B4XView, nRotor As B4XView) As String
+	Dim rotorLetter As String = value
+	Dim current As String = alphabet.indexOf(rotorLetter)
+	Dim nextpos As String = (current + 1) Mod 26
+	Dim previous As String = (current + 25) Mod 26
+	pRotor.text = alphabet.charAt(previous)
+	cRotor.Text = rotorLetter
+	nRotor.text = alphabet.charAt(nextpos)
+	Return rotorLetter
+End Sub
+
+Private Sub updateRotor(value As String) As String
+	Select value
+		Case "I"
+			Return rotor1
+		Case "II"
+			Return rotor2
+		Case "III"
+			Return rotor3
+		Case "IV"
+			Return rotor4
+		Case "V"
+			Return rotor5
+	End Select
+	Return Null
+End Sub
+
+Private Sub updateTrigger(value As String) As String
+	Select value
+		Case "I"
+			Return rotor1Trigger
+		Case "II"
+			Return rotor2Trigger
+		Case "III"
+			Return rotor3Trigger
+		Case "IV"
+			Return rotor4Trigger
+		Case "V"
+			Return rotor5Trigger
+	End Select
+	Return Null
+End Sub
+ 
+Private Sub combocancel_Click
+	closeSettings 'dont save anything
+End Sub
+
+Private Sub closeSettings
+	settingspnl.SetAlphaAnimated(400,0)
+	Sleep(400)
+	settingspnl.Left = MainForm.RootPane.Width*1.25
+End Sub
+ 
