@@ -12,4 +12,4 @@ Read more about it: https://en.wikipedia.org/wiki/Enigma_machine
 
 <br>
 <br>
-<img src="" alt="" width="400px">
+<img src="https://www.b4x.com/android/forum/attachments/1-png.124008/" alt="" width="400px">
